@@ -113,7 +113,7 @@ try                                                  % call the inference method
     if isstruct(y)
       post = y;            % reuse a previously computed posterior approximation
     else
-      post = feval(inf{:}, hyp, mean, cov, lik, x, y);
+      [post nlZ] = feval(inf{:}, hyp, mean, cov, lik, x, y);
     end
   else
     if nargout<=1
@@ -184,8 +184,8 @@ else
     nact = id(end);          % set counter to index of last processed data point
   end
   if nargin<9
-    varargout = {ymu, ys2, fmu, fs2, [], post};        % assign output arguments
+    varargout = {ymu, ys2, fmu, fs2, [], post, nlZ};        % assign output arguments
   else
-    varargout = {ymu, ys2, fmu, fs2, lp, post};
+    varargout = {ymu, ys2, fmu, fs2, lp, post, nlZ};
   end
 end
