@@ -1,5 +1,7 @@
 function [post nlZ dnlZ] = infKL_sKL(hyp, mean, cov, lik, x, y)
-% stochastic KL-Proximal Variational Gaussian Inference 
+% SVI using adaptive gradient
+% Wu Lin
+
 if hyp.is_cached==1
 	global cache_post;
 	global cache_nlz;

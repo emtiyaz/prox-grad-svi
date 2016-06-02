@@ -1,5 +1,5 @@
 function [post nlZ dnlZ] = infKL_sprox(hyp, mean, cov, lik, x, y)
-% stochastic KL-Proximal Variational Gaussian Inference 
+% PG-SVI
 
 if hyp.is_cached==1
 	global cache_post;
