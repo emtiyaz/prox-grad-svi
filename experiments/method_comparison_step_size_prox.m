@@ -1,4 +1,4 @@
-function method_comparison_step_size_prox(varargin)
+function method_comparison_step_size_sprox(varargin)
 if nargin<1 
 	disp('Usage method_comparison(dataset_name, output_path, check_idx)');
 	return
@@ -60,7 +60,7 @@ end
 %hyp.stochastic_approx=1 enable stochastic approxmation for the expectation
 %hyp.snu2 is used to correct the kernel matrix (eg, K_corrected=K+hyp.snu2*eye(n))
 
-algos = {'infKL_prox','infKL_prox','infKL_prox','infKL_prox','infKL_prox','infKL_prox','infKL_prox','infKL_prox','infKL_prox','infKL_prox','infKL_prox','infKL_prox','infKL_prox','infKL_prox','infKL_prox','infKL_prox','infKL_prox','infKL_prox','infKL_prox'};
+algos = {'infKL_sprox','infKL_sprox','infKL_sprox','infKL_sprox','infKL_sprox','infKL_sprox','infKL_sprox','infKL_sprox','infKL_sprox','infKL_sprox','infKL_sprox','infKL_sprox','infKL_sprox','infKL_sprox','infKL_sprox','infKL_sprox','infKL_sprox','infKL_sprox','infKL_sprox'};
 
 hyp.init_m = feval(meanfunc, hyp.mean, X_train); 
 n=size(X_train,1);
@@ -75,8 +75,7 @@ res_name=sprintf('./%s/%s.data.init.mat',output_path,dataset_name);
 save(res_name,'nlZ0', 'log_loss0');
 
 hyp.stochastic_approx=0;
-%hyp.sample_size=500;
-%hyp.mini_batch_size=5;
+hyp.mini_batch_size=280;%use the whole training set as a mini-batch
 for i=1:length(algos) 
 	if check>0 && i~=check
 		continue

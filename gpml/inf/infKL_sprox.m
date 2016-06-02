@@ -16,153 +16,113 @@ if hyp.is_cached==1
 end
 
 snu2=hyp.snu2;
-x_batch=x;
-y_batch=y;
-n_batch=size(x_batch,1);
+n=size(x,1);
 
 % GP prior
-K_batch = feval(cov{:}, hyp.cov, x_batch);                  % evaluate the covariance matrix
-m_batch = feval(mean{:}, hyp.mean, x_batch);                      % evaluate the mean vector
-K_batch=snu2*eye(n_batch)+K_batch;
+K = feval(cov{:}, hyp.cov, x);                  % evaluate the covariance matrix
+m = feval(mean{:}, hyp.mean, x);                      % evaluate the mean vector
+K=snu2*eye(n)+K;
 
 lik_name = func2str(lik{1});
 mini_batch_size=hyp.mini_batch_size;
 assert (mini_batch_size>0)
-mini_batch_num=ceil(n_batch/mini_batch_size);
+mini_batch_num=ceil(n/mini_batch_size);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %init value
-post_m_batch=hyp.init_m;%k=0
-%tW_batch = zeros(n_batch,1);%k=-1
-tW_batch = zeros(n_batch,1);%k=-1
-post_v_batch=diag(hyp.init_V);%k=0
+post_m=hyp.init_m;%k=0
+tW = zeros(n,1);%k=-1
+post_v=diag(hyp.init_V);%k=0
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-iter = 0;
-pass=0;
+iter = 0;%iteration
+pass=0;%pass
 max_pass=hyp.max_pass;
+beta = hyp.learning_rate;
+r = 1/(beta+1);
+index=1:n;
 while pass<max_pass
-	index=randperm(n_batch);
+	if mini_batch_size<n
+		index=randperm(n);
+	end
 	offset=0;
 	mini_batch_counter=0;
+	pass=pass+1;
 	while mini_batch_counter<mini_batch_num
+		mini_batch_counter=mini_batch_counter+1;
 		iter=iter+1;
+		tmp_idx = mini_batch_counter*mini_batch_size;
+		idx=index( (tmp_idx-mini_batch_size+1):min(tmp_idx,n) );
 
-		to_idx=(mini_batch_counter+1)*mini_batch_size;
-		if to_idx>n_batch
-			to_idx=n_batch;
-		end
-		from_idx=mini_batch_counter*mini_batch_size+1;
-
-		idx=index(from_idx:to_idx);
-		x=x_batch(idx,:);
-		y=y_batch(idx);
-
-		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		%mini batch
-		rate=hyp.learning_rate;
-		weight=double(n_batch)/size(x,1);
-
-		beta = rate;
-		r = 1/(beta+1);
+		weight=double(n)/size(x(idx,:),1);
 
 		if hyp.stochastic_approx==1
-			[ll, gf, gv] = sampling_E(y, post_m_batch(idx), post_v_batch(idx), lik, hyp.sample_size, hyp.lik);
+			[ll, gf, gv] = sampling_E(y(idx), post_m(idx), post_v(idx), lik, hyp.sample_size, hyp.lik);
 		else
 			switch lik_name
 			case {'laplace','likLaplace','poisson','bernoulli_logit','likLogistic'}
-				[ll, gf, gv] = E_log_p(lik_name, y, post_m_batch(idx), post_v_batch(idx), hyp.lik);
+				[ll, gf, gv] = E_log_p(lik_name, y(idx), post_m(idx), post_v(idx), hyp.lik);
 			otherwise	 
-				[ll,gf,d2f,gv] = likKL(post_v_batch(idx), lik, hyp.lik, y, post_m_batch(idx));
+				[ll,gf,d2f,gv] = likKL(post_v(idx), lik, hyp.lik, y(idx), post_m(idx));
 			end
 		end
-
-		%using unbaised weight
-		gf = gf .* weight;
-		gv = gv .* weight;
-
-		%mapping the change in a mini_batch to the change in the whole batch 
-		df_batch=zeros(n_batch,1);
-		df_batch(idx)=gf;
-
-		dv_batch=zeros(n_batch,1);
-		dv_batch(idx)=gv;
-
-		W_batch = -2*dv_batch;
 
 		% pseudo observation
-		pseudo_y_batch = m_batch + K_batch*df_batch - post_m_batch;
-
-		%remove the following if-else statement if we approximate r^{k} .* tW.^{k-1} by tW.{k}
-		if isfield(hyp,'exact')
-			if iter==1
-				post_m_batch=post_m_batch+(1-r).*pseudo_y_batch;%m^{1}
-			else
-				sW_batch = sqrt(r.*tW_batch);%r^k .* tW^{k-1}
-				L_batch = chol(eye(n_batch)+sW_batch*sW_batch'.*K_batch); %L = chol(sW*K*sW + eye(n)); 
-				post_m_batch = post_m_batch + (1-r).*(pseudo_y_batch - K_batch*(sW_batch.*( L_batch\ (L_batch'\(sW_batch.*pseudo_y_batch)))));%m^{k+1}
-			end
-		end
-
-		tW_batch = r.*tW_batch + (1-r).*W_batch;%tW^{k}
-		sW_batch = sqrt(abs(tW_batch)) .* sign(tW_batch);
-		L_batch = chol(eye(n_batch)+sW_batch*sW_batch'.*K_batch); %L = chol(sW*K*sW + eye(n)); 
+		pseudo_y = m + K(:,idx)* (weight*gf) - post_m;
+		tW = r.*tW;
+		tW(idx) = tW(idx)+(1-r).*((-2*weight)*gv);%tW^{k}, where W=-2*gv
+		sW = sqrt(abs(tW)) .* sign(tW);
+		L = chol(eye(n)+sW*sW'.*K); %L = chol(sW*K*sW + eye(n)); 
 
 		%use this following line if we approximate r^{k} .* tW.^{k-1} by tW.{k}
-		if ~isfield(hyp,'exact')
-			post_m_batch = post_m_batch + (1-r).*(pseudo_y_batch - K_batch*(sW_batch.*( L_batch\ (L_batch'\(sW_batch.*pseudo_y_batch)))));%m^{k+1}
-		end
+		post_m = post_m + (1-r).*(pseudo_y - K*(sW.*( L\(L'\(sW.*pseudo_y)))));%m^{k+1}
+		T = L'\(repmat(sW,1,n).*K); %T  = L'\(sW*K);
+		post_v = diag(K) - sum(T.*T,1)'; % v = diag(inv(inv(K)+diag(W))); %v^{k+1}
 
-		T_batch = L_batch'\(repmat(sW_batch,1,n_batch).*K_batch); %T  = L'\(sW*K);
-		post_v_batch = diag(K_batch) - sum(T_batch.*T_batch,1)'; % v = diag(inv(inv(K)+diag(W))); %v^{k+1}
-
-		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-		mini_batch_counter=mini_batch_counter+1;
 
 		if isfield(hyp,'save_iter') && hyp.save_iter==1
 			global cache_nlz_iter
 			global cache_iter
 
-			alpha_batch=K_batch\(post_m_batch-m_batch);
-			nlZ_batch2=compute_nlz(lik, hyp, sW_batch, K_batch, m_batch, alpha_batch, post_m_batch, y_batch);
+			alpha=K\(post_m-m);
+			nlZ2=compute_nlz(lik, hyp, sW, K, m, alpha, post_m, y);
 			cache_iter=[cache_iter; iter];
-			cache_nlz_iter=[cache_nlz_iter; nlZ_batch2];
+			cache_nlz_iter=[cache_nlz_iter; nlZ2];
 		end
 
 	end
-	alpha_batch=K_batch\(post_m_batch-m_batch);
-	nlZ_batch=compute_nlz(lik, hyp, sW_batch, K_batch, m_batch, alpha_batch, post_m_batch, y_batch);
+	alpha=K\(post_m-m);
+	nlZ=compute_nlz(lik, hyp, sW, K, m, alpha, post_m, y);
 
-	pass=pass+1;
 	if isfield(hyp,'save_iter') && hyp.save_iter==1
 		if pass==1
 			global num_iters_at_pass;
 			num_iters_at_pass=iter;
 		end
-		fprintf('pass:%d) at %d iter %.4f %.4f\n', pass, iter, nlZ_batch, nlZ_batch2);
+		fprintf('pass:%d) at %d iter %.4f %.4f\n', pass, iter, nlZ, nlZ2);
 	else
-		fprintf('pass:%d) %.4f\n', pass, nlZ_batch);
+		fprintf('pass:%d) %.4f\n', pass, nlZ);
 	end
 
 	if hyp.is_save==1
 		global cache_post;
 		global cache_nlz;
 
-		post.sW = sW_batch;                                             % return argument
-		post.alpha = alpha_batch;
-		post.L = L_batch;      
+		post.sW = sW;                                             % return argument
+		post.alpha = alpha;
+		post.L = L;      
 
 		cache_post=[cache_post; post];
-		cache_nlz=[cache_nlz; nlZ_batch];
+		cache_nlz=[cache_nlz; nlZ];
 	end
 end
 
-alpha_batch=K_batch\(post_m_batch-m_batch);
-post.sW = sW_batch;                                             % return argument
-post.alpha = alpha_batch;
-post.L = L_batch;                                              % L'*L=B=eye(n)+sW*K*sW
+alpha=K\(post_m-m);
+post.sW = sW;                                             % return argument
+post.alpha = alpha;
+post.L = L;                                              % L'*L=B=eye(n)+sW*K*sW
 
-nlZ=compute_nlz(lik, hyp, sW_batch, K_batch, m_batch, alpha_batch, post_m_batch, y_batch);
+nlZ=compute_nlz(lik, hyp, sW, K, m, alpha, post_m, y);
 fprintf('final: %.4f\n', nlZ);
 
 if nargout>2
