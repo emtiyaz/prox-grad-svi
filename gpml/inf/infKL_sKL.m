@@ -61,16 +61,9 @@ if isfield(hyp,'opt_alg')
 		assert(isfield(hyp,'epsilon'))
 		g_acc_m_u_batch=zeros(n_batch,1);
 		g_acc_C_u_batch=zeros(n_batch,n_batch);
-	case 'adam'
-		assert(isfield(hyp,'epsilon'))
-		assert(isfield(hyp,'decay_factor_var'))
-		assert(isfield(hyp,'decay_factor_mean'))
-		g_mean_m_u_batch=zeros(n_batch,1);
-		g_mean_C_u_batch=zeros(n_batch,n_batch);
-		g_var_m_u_batch=zeros(n_batch,1);
-		g_var_C_u_batch=zeros(n_batch,n_batch);
 	case 'smorms3'
 		assert(isfield(hyp,'epsilon'))
+
 		g_acc_m_u_batch=zeros(n_batch,1);
 		g_acc_square_m_u_batch=zeros(n_batch,1);
 		mem_m_u_batch=ones(n_batch,1);
@@ -83,9 +76,9 @@ if isfield(hyp,'opt_alg')
 	end
 
 end
-%assert(~isfield(hyp,'momentum'))
-%assert(~isfield(hyp,'adadelta'))
-iter=0;
+assert(~isfield(hyp,'momentum'))
+assert(~isfield(hyp,'adadelta'))
+iter = 0;
 pass=0;
 max_pass=hyp.max_pass;
 while pass<max_pass
@@ -161,18 +154,6 @@ while pass<max_pass
 				[g_C_u_batch,g_acc_C_u_batch,g_delta_acc_C_u_batch] = adadelta_update(g_C_u_batch,g_acc_C_u_batch,g_delta_acc_C_u_batch,decay_factor,epsilon,learning_rate);
 				C_u_batch=C_u_batch-g_C_u_batch;
 
-			case 'adam'
-				decay_factor_var=hyp.decay_factor_var;
-				decay_factor_mean=hyp.decay_factor_mean;
-				epsilon=hyp.epsilon;
-				learning_rate=hyp.learning_rate;
-
-				[g_m_u_batch,g_mean_m_u_batch,g_var_m_u_batch] = adam_update(g_m_u_batch,g_mean_m_u_batch,g_var_m_u_batch,decay_factor_mean,decay_factor_var,epsilon,learning_rate,iter);
-				m_u_batch=m_u_batch-g_m_u_batch;
-
-				[g_C_u_batch,g_mean_C_u_batch,g_var_C_u_batch] = adam_update(g_C_u_batch,g_mean_C_u_batch,g_var_C_u_batch,decay_factor_mean,decay_factor_var,epsilon,learning_rate,iter);
-				C_u_batch=C_u_batch-g_C_u_batch;
-
 			case 'rmsprop'
 				decay_factor=hyp.decay_factor;
 				epsilon=hyp.epsilon;
@@ -208,7 +189,7 @@ while pass<max_pass
 				error('do not support')
 			end
 		else
-			m_u_batch=m_u_batch-g_rate.*g_m_u_batch;
+			m_u_batch=m_u_batch-g_rate .*g_m_u_batch;
 			C_u_batch=C_u_batch-g_rate.*g_C_u_batch;
 		end
 
@@ -232,7 +213,7 @@ while pass<max_pass
 			end
 			W_batch=-2.0*dv_batch;
 			sW_batch=sqrt(abs(W_batch)).*sign(W_batch);
-			nlZ_batch2=batch_nlz_fullv2(lik, hyp, sW_batch, K_batch, m_batch, alpha_batch, post_m_batch, y_batch);
+			nlZ_batch2=compute_nlz(lik, hyp, sW_batch, K_batch, m_batch, alpha_batch, post_m_batch, y_batch);
 
 			cache_iter=[cache_iter; iter];
 			cache_nlz_iter=[cache_nlz_iter; nlZ_batch2];
@@ -254,7 +235,7 @@ while pass<max_pass
 	end
 	W_batch=-2.0*dv_batch;
 	sW_batch=sqrt(abs(W_batch)).*sign(W_batch);
-	nlZ_batch=batch_nlz_fullv2(lik, hyp, sW_batch, K_batch, m_batch, alpha_batch, post_m_batch, y_batch);
+	nlZ_batch=compute_nlz(lik, hyp, sW_batch, K_batch, m_batch, alpha_batch, post_m_batch, y_batch);
 	fprintf('pass:%d) %.4f\n', pass, nlZ_batch);
 
 	if hyp.is_save==1
@@ -275,7 +256,7 @@ post.sW = sW_batch;                                             % return argumen
 post.alpha = alpha_batch;
 post.L = L_batch;                                              % L'*L=B=eye(n)+sW*K*sW
 
-nlZ=batch_nlz_fullv2(lik, hyp, sW_batch, K_batch, m_batch, alpha_batch, post_m_batch, y_batch);
+nlZ=compute_nlz(lik, hyp, sW_batch, K_batch, m_batch, alpha_batch, post_m_batch, y_batch);
 fprintf('final: %.4f\n', nlZ);
 
 if nargout>2
@@ -289,17 +270,6 @@ function [grad,g_acc,g_delta_acc] = adadelta_update(gradient,g_acc,g_delta_acc,d
 	g_acc=decay_factor .* g_acc + (1.0-decay_factor) .* (gradient.^2);
 	grad= (learning_rate .* gradient .* sqrt(g_delta_acc + epsilon) ./ sqrt(g_acc+epsilon) );
 	g_delta_acc=decay_factor .* g_delta_acc + (1.0-decay_factor) .* (grad.^2);
-end
-
-
-function [grad,g_mean,g_var] = adam_update(gradient,g_mean,g_var,decay_factor_mean,decay_factor_var,epsilon,learning_rate,times)
-	g_mean=decay_factor_mean .* g_mean + (1.0-decay_factor_mean) .* (gradient);
-	g_var=decay_factor_var .* g_var + (1.0-decay_factor_var) .* (gradient.^2);
-	g_mean_hat=g_mean ./ (1.0-(decay_factor_mean.^times));
-	g_var_hat=g_var ./ (1.0-(decay_factor_var.^times));
-	grad=learning_rate .* g_mean_hat ./ (sqrt(g_var_hat)+epsilon);
-	%learning_rate_adjusted=learning_rate.*sqrt(1.0-(decay_factor_var.^times))./(1.0-(decay_factor_mean.^times));
-	%grad=learning_rate_adjusted .* g_mean ./ (sqrt(g_var)+epsilon);
 end
 
 function [grad,g_acc] = rmsprop_update(gradient,g_acc,decay_factor,epsilon,learning_rate)

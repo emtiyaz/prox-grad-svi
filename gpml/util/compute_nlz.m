@@ -1,5 +1,6 @@
-function nlZ=batch_nlz_fullv2(lik, hyp, sW, K, m, alpha, mu, y_batch)
-
+function nlZ=compute_nlz(lik, hyp, sW, K, m, alpha, mu, y_batch)
+% compute the negative lower bound
+% Wu Lin
 	n = size(mu,1);
 	L = chol(eye(n)+sW*sW'.*K);                            % L'*L=B=eye(n)+sW*K*sW
 	V = L'\(repmat(sW,1,n).*K);

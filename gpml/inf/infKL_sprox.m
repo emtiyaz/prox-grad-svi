@@ -124,14 +124,14 @@ while pass<max_pass
 			global cache_iter
 
 			alpha_batch=K_batch\(post_m_batch-m_batch);
-			nlZ_batch2=batch_nlz_fullv2(lik, hyp, sW_batch, K_batch, m_batch, alpha_batch, post_m_batch, y_batch);
+			nlZ_batch2=compute_nlz(lik, hyp, sW_batch, K_batch, m_batch, alpha_batch, post_m_batch, y_batch);
 			cache_iter=[cache_iter; iter];
 			cache_nlz_iter=[cache_nlz_iter; nlZ_batch2];
 		end
 
 	end
 	alpha_batch=K_batch\(post_m_batch-m_batch);
-	nlZ_batch=batch_nlz_fullv2(lik, hyp, sW_batch, K_batch, m_batch, alpha_batch, post_m_batch, y_batch);
+	nlZ_batch=compute_nlz(lik, hyp, sW_batch, K_batch, m_batch, alpha_batch, post_m_batch, y_batch);
 
 	pass=pass+1;
 	if isfield(hyp,'save_iter') && hyp.save_iter==1
@@ -162,7 +162,7 @@ post.sW = sW_batch;                                             % return argumen
 post.alpha = alpha_batch;
 post.L = L_batch;                                              % L'*L=B=eye(n)+sW*K*sW
 
-nlZ=batch_nlz_fullv2(lik, hyp, sW_batch, K_batch, m_batch, alpha_batch, post_m_batch, y_batch);
+nlZ=compute_nlz(lik, hyp, sW_batch, K_batch, m_batch, alpha_batch, post_m_batch, y_batch);
 fprintf('final: %.4f\n', nlZ);
 
 if nargout>2

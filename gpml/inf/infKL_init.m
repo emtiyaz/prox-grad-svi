@@ -16,7 +16,7 @@ lik_name = func2str(lik{1});
 
 alpha=K\(post_m-m);
 sW = sqrt(abs(tW)) .* sign(tW);
-nlZ=batch_nlz_fullv2(lik, hyp, sW, K, m, alpha, post_m, y);
+nlZ=compute_nlz(lik, hyp, sW, K, m, alpha, post_m, y);
 
 post.sW = sW;                                             % return argument
 post.alpha = alpha;

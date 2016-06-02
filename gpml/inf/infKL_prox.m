@@ -75,7 +75,7 @@ for k = 1:kmax                                                         % iterate
   post_v = diag(K) - sum(T.*T,1)'; % v = diag(inv(inv(K)+diag(W))); %v^{k+1}
 
   alpha = K\(post_m-m);
-  nlZ_iter=batch_nlz_fullv2(lik, hyp, sW, K, m, alpha, post_m, y);
+  nlZ_iter=compute_nlz(lik, hyp, sW, K, m, alpha, post_m, y);
   fprintf('pass:%d) %.4f\n', k, nlZ_iter);
 
   if hyp.is_save==1
@@ -108,7 +108,7 @@ post.sW = sW;                                             % return argument
 post.alpha = alpha;
 post.L = L;                                              % L'*L=B=eye(n)+sW*K*sW
 
-nlZ=batch_nlz_fullv2(lik, hyp, sW, K, m, alpha, post_m, y);
+nlZ=compute_nlz(lik, hyp, sW, K, m, alpha, post_m, y);
 fprintf('final: %.4f\n', nlZ);
 
 if nargout>2
