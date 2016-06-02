@@ -50,10 +50,10 @@ while pass<max_pass
 	while mini_batch_counter<mini_batch_num
 		mini_batch_counter=mini_batch_counter+1;
 		iter=iter+1;
+		%mini batch
 		tmp_idx = mini_batch_counter*mini_batch_size;
 		idx=index( (tmp_idx-mini_batch_size+1):min(tmp_idx,n) );
 
-		%mini batch
 		weight=double(n)/size(x(idx,:),1);
 
 		if hyp.stochastic_approx==1

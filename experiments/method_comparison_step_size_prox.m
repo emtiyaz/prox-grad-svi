@@ -75,7 +75,7 @@ res_name=sprintf('./%s/%s.data.init.mat',output_path,dataset_name);
 save(res_name,'nlZ0', 'log_loss0');
 
 hyp.stochastic_approx=0;
-hyp.mini_batch_size=280;%use the whole training set as a mini-batch
+hyp.mini_batch_size=n_train
 for i=1:length(algos) 
 	if check>0 && i~=check
 		continue

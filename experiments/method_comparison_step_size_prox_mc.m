@@ -78,7 +78,7 @@ save(res_name,'nlZ0', 'log_loss0');
 
 hyp.stochastic_approx=1;
 hyp.sample_size=500;
-hyp.mini_batch_size=280;
+hyp.mini_batch_size=n_train;
 for i=1:length(algos) 
 	if check>0 && i~=check
 		continue
