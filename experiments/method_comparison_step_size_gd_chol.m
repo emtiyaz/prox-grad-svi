@@ -1,6 +1,6 @@
 function method_comparison_step_size_gd_chol(varargin)
 if nargin<1 
-	disp('Usage method_comparison(dataset_name, output_path, check_idx)');
+	disp('Usage method_comparison_step_size_gd_chol(dataset_name, output_path, check_idx)');
 	return
 else
 	dataset_name=char(varargin(1));

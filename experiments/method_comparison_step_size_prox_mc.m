@@ -1,6 +1,6 @@
-function method_comparison_step_size_sprox_mc(varargin)
+function method_comparison_step_size_prox_mc(varargin)
 if nargin<1 
-	disp('Usage method_comparison(dataset_name, output_path, check_idx)');
+	disp('Usage method_comparison_step_size_prox_mc(dataset_name, output_path, check_idx)');
 	return
 else
 	dataset_name=char(varargin(1));

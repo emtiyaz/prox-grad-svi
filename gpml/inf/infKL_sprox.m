@@ -79,7 +79,6 @@ while pass<max_pass
 		T = L'\(repmat(sW,1,n).*K); %T  = L'\(sW*K);
 		post_v = diag(K) - sum(T.*T,1)'; % v = diag(inv(inv(K)+diag(W))); %v^{k+1}
 
-
 		if isfield(hyp,'save_iter') && hyp.save_iter==1
 			global cache_nlz_iter
 			global cache_iter
