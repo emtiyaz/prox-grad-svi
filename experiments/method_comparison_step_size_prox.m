@@ -1,4 +1,5 @@
 function method_comparison_step_size_prox(varargin)
+%Wu Lin
 if nargin<1 
 	disp('Usage method_comparison_step_size_prox(dataset_name, output_path, check_idx)');
 	return

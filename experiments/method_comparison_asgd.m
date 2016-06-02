@@ -1,4 +1,5 @@
 function method_comparison_asgd(varargin)
+%Wu Lin
 if nargin<1 
 	disp('Usage method_comparison_asgd(dataset_name, output_path, check_idx)');
 	return
@@ -279,7 +280,6 @@ for i=1:length(algos)
 		hyp.init_V = feval(covfuncF, hyp.cov, X_train);
 		hyp.init_V=hyp.init_V+hyp.snu2*eye(n); 
 		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-		%%lbfgs will change g_pass
 		if pass>g_pass && skipped==0
 			g_pass=pass;
 			[a b c d log_p_hat, e, nlZ] = gp(hyp, inffunc, meanfunc, covfuncF, likfunc, X_train, Y_train, X_test, Y_test);
