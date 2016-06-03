@@ -68,14 +68,14 @@ while pass<max_pass
 		end
 
 		% pseudo observation
-		pseudo_y = m + K(:,idx)* (weight*gf) - post_m;
+		pseudo_y = m + K(:,idx)*(weight*gf) - post_m;
 		tW = r.*tW;
 		tW(idx) = tW(idx)+(1-r).*((-2*weight)*gv);%tW^{k}, where W=-2*gv
 		sW = sqrt(abs(tW)) .* sign(tW);
 		L = chol(eye(n)+sW*sW'.*K); %L = chol(sW*K*sW + eye(n)); 
 
 		%use this following line if we approximate r^{k} .* tW.^{k-1} by tW.{k}
-		post_m = post_m + (1-r).*(pseudo_y - K*(sW.*( L\(L'\(sW.*pseudo_y)))));%m^{k+1}
+		post_m = post_m + (1-r).*(pseudo_y - K*(sW.*(L\(L'\(sW.*pseudo_y)))));%m^{k+1}
 		T = L'\(repmat(sW,1,n).*K); %T  = L'\(sW*K);
 		post_v = diag(K) - sum(T.*T,1)'; % v = diag(inv(inv(K)+diag(W))); %v^{k+1}
 

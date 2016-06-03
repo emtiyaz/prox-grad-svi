@@ -57,7 +57,6 @@ if isfield(hyp,'opt_alg')
 		assert(isfield(hyp,'decay_factor'))
 		g_acc_m_u=zeros(n,1);
 		g_acc_C_u=zeros(n,n);
-
         case 'adam'
                 assert(isfield(hyp,'epsilon'))
                 assert(isfield(hyp,'decay_factor_var'))
@@ -72,11 +71,9 @@ if isfield(hyp,'opt_alg')
 		g_acc_C_u=zeros(n,n);
 	case 'smorms3'
 		assert(isfield(hyp,'epsilon'))
-
 		g_acc_m_u=zeros(n,1);
 		g_acc_square_m_u=zeros(n,1);
 		mem_m_u=ones(n,1);
-
 		g_acc_C_u=zeros(n,n);
 		g_acc_square_C_u=zeros(n,n);
 		mem_C_u=ones(n,n);
@@ -132,7 +129,7 @@ while pass<max_pass
 		g_m_u=alpha-df;
 
 		g_C_u=tril(K\C - diag(2.0.*dv)*C);
-		g_C_u=g_C_u-diag(diag(g_C_u)) +diag(diag(g_C_u) .* diag(C) )+ diag(-1 .*ones(n,1));
+		g_C_u=g_C_u-diag(diag(g_C_u))+diag(diag(g_C_u).*diag(C))+diag(-1.*ones(n,1));
 
 		if isfield(hyp,'opt_alg')
 			switch hyp.opt_alg
@@ -141,6 +138,7 @@ while pass<max_pass
 				m_u=m_u+momentum_m_u;
 				momentum_C_u=hyp.momentum .* momentum_C_u-g_rate .*g_C_u;
 				C_u=C_u+momentum_C_u;
+
 			case 'adadelta'
 				decay_factor=hyp.decay_factor;
 				epsilon=hyp.epsilon;
@@ -199,6 +197,7 @@ while pass<max_pass
 				error('do not support')
 			end
 		else
+			%sgd
 			m_u=m_u-g_rate.*g_m_u;
 			C_u=C_u-g_rate.*g_C_u;
 		end
@@ -209,7 +208,7 @@ while pass<max_pass
 
 			post_m=m_u;
 			alpha=K\(m_u-m);
-			C = C_u-diag(diag(C_u))+diag(exp(diag(C_u)));
+			C=C_u-diag(diag(C_u))+diag(exp(diag(C_u)));
 			post_v=sum(C'.*C',1)';
 			switch lik_name
 			case {'laplace','likLaplace','poisson','bernoulli_logit','likLogistic'}
@@ -224,13 +223,12 @@ while pass<max_pass
 			cache_iter=[cache_iter; iter];
 			cache_nlz_iter=[cache_nlz_iter; nlZ2];
 		end
-
 	end
 
 	%display nlz
 	post_m=m_u;
 	alpha=K\(m_u-m);
-	C = C_u-diag(diag(C_u))+diag(exp(diag(C_u)));
+	C=C_u-diag(diag(C_u))+diag(exp(diag(C_u)));
 	post_v=sum(C'.*C',1)';
 	switch lik_name
 	case {'laplace','likLaplace','poisson','bernoulli_logit','likLogistic'}
