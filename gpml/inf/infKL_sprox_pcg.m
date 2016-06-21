@@ -17,6 +17,9 @@ end
 
 snu2=hyp.snu2;
 n=size(x,1);
+nu=round(sqrt(n))+1;
+rot180   = @(A)   rot90(rot90(A));                     % little helper functions
+chol_inv = @(A) rot180(chol(rot180(A))')\eye(nu);                 % chol(inv(A))
 
 % GP prior
 K = feval(cov{:}, hyp.cov, x);                  % evaluate the covariance matrix
@@ -43,22 +46,24 @@ index=1:n;
 assert (mini_batch_size==1)
 diagK=diag(K);
 
+xu = x(1:nu,:);
+Kuu = feval(cov{:}, hyp.cov, xu, xu); 
+Ku = feval(cov{:}, hyp.cov, xu, x); 
+R0 = chol_inv(Kuu+snu2*eye(nu));  V = R0*Ku;
+%d0 = zeros(n,1); %Nystrom
+d0 = diagK-sum(V.*V,1)'; %FITC
+B=zeros(n,n);
+
 while pass<max_pass
 	index=randperm(n);
 	offset=0;
 	mini_batch_counter=1;
 	pass=pass+1;
 
-
+	tic
 	idx=index(1);
 	post_m_single=post_m(idx);
-	if pass==1
-		post_v_single=post_v(idx);
-	else
-		T = L'\(sW.*K(:,idx)); %T  = L'\(sW*K);
-		post_v_single = diagK(idx) - sum(T.*T,1)'; % v = diag(inv(inv(K)+diag(W)));
-	end
-
+	post_v_single=post_v(idx);
 	while mini_batch_counter<=mini_batch_num
 		iter=iter+1;
 		weight=double(n)/size(x(idx,:),1);
@@ -76,28 +81,41 @@ while pass<max_pass
 
 		% pseudo observation
 		pseudo_y = m + K(:,idx)*(weight*gf) - post_m;
+
 		tW = r.*tW;
 		tW(idx) = tW(idx)+(1-r).*((-2*weight)*gv);%tW^{k}, where W=-2*gv
 		sW = sqrt(abs(tW)) .* sign(tW);
-		L = chol(eye(n)+sW*sW'.*K); %L = chol(sW*K*sW + eye(n)); 
+		A = eye(n)+sW*sW'.*K;
 
-		%use this following line if we approximate r^{k} .* tW.^{k-1} by tW.{k}
-		post_m = post_m + (1-r).*(pseudo_y - K*(sW.*(L\(L'\(sW.*pseudo_y)))));%m^{k+1}
+		%L = chol(A); %L = chol(sW*K*sW + eye(n)); 
+		%post_m = post_m + (1-r).*(pseudo_y - K*(sW.*(L\(L'\(sW.*pseudo_y)))));%m^{k+1}
 
-		randperm(n);
+		%using FITC/Nystrom as pre-conditioner
+		nu=size(Kuu,1);
+		n=size(Ku,2);
+		d_inv = 1.0 ./ ( ones(n,1) + sW.*sW.*d0 );
+		tmp1 = repmat( (sW.*d_inv)',nu,1).*Ku; %Ku*sW*diag(d_inv)
+		tmp2 = (repmat( (sW.*sW.*d_inv)',nu,1).*Ku)*Ku';
+		tmp3=tmp2+Kuu;
+
+
+		b = sW.*pseudo_y;
+		res_m=my_pcg(A,b,d_inv,tmp1,tmp3);
+		post_m = post_m + (1-r).*(pseudo_y - K*(sW.*res_m) );%m^{k+1}
+
 		if mini_batch_counter>=mini_batch_num
 			break
 		end
-	
-		%%%%%%%%%%%%%%%%
 
 		mini_batch_counter=mini_batch_counter+1;
 		idx=index( mini_batch_counter );
-		T = L'\(sW.*K(:,idx)); %T  = L'\(sW*K);
-		post_v_single = diagK(idx) - sum(T.*T,1)'; % v = diag(inv(inv(K)+diag(W))); %v^{k+1}
+		%T = L'\(sW.*K(:,idx)); %T  = L'\(sW*K);
+		%post_v_single = diagK(idx) - sum(T.*T,1)'; % v = diag(inv(inv(K)+diag(W))); %v^{k+1}
+		b = sW.*K(:,idx);
+		res_v=my_pcg(A,b,d_inv,tmp1,tmp3);
+		post_v_single = diagK(idx) - b'*res_v;
+		assert (post_v_single > 0)
 		post_m_single=post_m(idx);
-
-		%fprintf('ddeebug %.4f %.4f\n', post_v_single, post_v_single2)
 
 		if isfield(hyp,'save_iter') && hyp.save_iter==1
 			global cache_nlz_iter
@@ -108,8 +126,9 @@ while pass<max_pass
 			cache_iter=[cache_iter; iter];
 			cache_nlz_iter=[cache_nlz_iter; nlZ2];
 		end
-
 	end
+	toc
+
 	alpha=K\(post_m-m);
 	sW = sqrt(abs(tW)) .* sign(tW);
 	L = chol(eye(n)+sW*sW'.*K); %L = chol(sW*K*sW + eye(n)); 
@@ -150,3 +169,48 @@ if nargout>2
   warning('to be implemented\n');
   dnlZ = NaN;
 end
+end
+
+function [x it]=my_pcg(K,b,d_inv,tmp1,tmp3)
+	n=size(b,1);
+        x = zeros(n,1);
+        %r = b - K*x; %if x is non-zero
+        r = b;
+        z = (d_inv).*r - tmp1'*(tmp3\(tmp1*r));%z = P\r;, where P=eye(n)+diag(sW)*( Ku'*(Kuu\Ku)+diag(d0) )*diag(sW)
+        p = z;
+        it=0;
+        while it<n
+                alpha = r'*z / (p'*(K*p));
+                x = x + alpha*p;
+                r_prev = r;
+                r = r - alpha*(K*p);
+                if sum(abs(r))<n*1e-2
+                        break
+                end
+                z_prev = z;
+		z = (d_inv).*r - tmp1'*(tmp3\(tmp1*r));%z = P\r;
+                beta = z'*r/(z_prev'*r_prev);
+                p = z + beta*p;
+                it=it+1;
+        end
+	if it>sqrt(n)*3
+		fprintf('Warning! >sqrt(n) %d iterations n=%d\n',it,n)
+	end
+end
+
+%function [res]=low_rank_inv(d_inv, tmp1, tmp3, x)
+	%res = (d_inv).*x - tmp1'*(tmp3\(tmp1*x)); 
+%end
+
+%function [res]=low_rank_inv(d0,Ku,Kuu,sW,x)
+        %nu=size(Kuu,1);
+        %n=size(Ku,2);
+        %d_inv = 1.0 ./ ( ones(n,1) + sW.*sW.*d0 );
+        %tmp1 = repmat( (sW.*d_inv)',nu,1).*Ku; %Ku*sW*diag(d_inv)
+        %tmp2 = (repmat( (sW.*sW.*d_inv)',nu,1).*Ku)*Ku';
+        %res = (d_inv).*x - tmp1'*((tmp2+Kuu)\(tmp1*x)); 
+
+	%%A=eye(n)+diag(sW)*( Ku'*(Kuu\Ku)+diag(d0) )*diag(sW);
+	%%res2=A\x;
+	%%fprintf('low:%.6f %.6f\n',res(3),res2(3));
+%end
