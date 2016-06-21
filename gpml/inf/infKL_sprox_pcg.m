@@ -87,8 +87,6 @@ while pass<max_pass
 		sW = sqrt(abs(tW)) .* sign(tW);
 		A = eye(n)+sW*sW'.*K;
 
-		%L = chol(A); %L = chol(sW*K*sW + eye(n)); 
-		%post_m = post_m + (1-r).*(pseudo_y - K*(sW.*(L\(L'\(sW.*pseudo_y)))));%m^{k+1}
 
 		%using FITC/Nystrom as pre-conditioner
 		nu=size(Kuu,1);
@@ -99,9 +97,10 @@ while pass<max_pass
 		tmp3=tmp2+Kuu;
 
 
+		%L = chol(A); %L = chol(sW*K*sW + eye(n)); 
 		b = sW.*pseudo_y;
 		res_m=my_pcg(A,b,d_inv,tmp1,tmp3);
-		post_m = post_m + (1-r).*(pseudo_y - K*(sW.*res_m) );%m^{k+1}
+		post_m = post_m + (1-r).*(pseudo_y - K*(sW.*res_m) );%post_m = post_m + (1-r).*(pseudo_y - K*(sW.*(L\(L'\(sW.*pseudo_y)))));
 
 		if mini_batch_counter>=mini_batch_num
 			break
@@ -110,10 +109,9 @@ while pass<max_pass
 		mini_batch_counter=mini_batch_counter+1;
 		idx=index( mini_batch_counter );
 		%T = L'\(sW.*K(:,idx)); %T  = L'\(sW*K);
-		%post_v_single = diagK(idx) - sum(T.*T,1)'; % v = diag(inv(inv(K)+diag(W))); %v^{k+1}
 		b = sW.*K(:,idx);
 		res_v=my_pcg(A,b,d_inv,tmp1,tmp3);
-		post_v_single = diagK(idx) - b'*res_v;
+		post_v_single = diagK(idx) - b'*res_v;%post_v_single = diagK(idx) - sum(T.*T,1)'; % v = diag(inv(inv(K)+diag(W))); %v^{k+1}
 		assert (post_v_single > 0)
 		post_m_single=post_m(idx);
 
