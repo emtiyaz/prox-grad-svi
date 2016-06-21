@@ -171,26 +171,26 @@ end
 
 function [x it]=my_pcg(K,b,d_inv,tmp1,tmp3)
 	n=size(b,1);
-        x = zeros(n,1);
-        %r = b - K*x; %if x is non-zero
-        r = b;
-        z = (d_inv).*r - tmp1'*(tmp3\(tmp1*r));%z = P\r;, where P=eye(n)+diag(sW)*( Ku'*(Kuu\Ku)+diag(d0) )*diag(sW)
-        p = z;
-        it=0;
-        while it<n
-                alpha = r'*z / (p'*(K*p));
-                x = x + alpha*p;
-                r_prev = r;
-                r = r - alpha*(K*p);
-                if sum(abs(r))<n*1e-2
-                        break
-                end
-                z_prev = z;
-		z = (d_inv).*r - tmp1'*(tmp3\(tmp1*r));%z = P\r;
-                beta = z'*r/(z_prev'*r_prev);
-                p = z + beta*p;
-                it=it+1;
-        end
+	x = zeros(n,1);
+	%r = b - K*x; %if x is non-zero
+	r = b;
+	z = (d_inv).*r - tmp1'*(tmp3\(tmp1*r));%z = P\r;, where P=eye(n)+diag(sW)*( Ku'*(Kuu\Ku)+diag(d0) )*diag(sW)
+	p = z;
+	it=0;
+	while it<n
+		alpha = r'*z / (p'*(K*p));
+		x = x + alpha*p;
+		r_prev = r;
+		r = r - alpha*(K*p);
+		if sum(abs(r))<n*1e-2
+			break
+		end
+	z_prev = z;
+	z = (d_inv).*r - tmp1'*(tmp3\(tmp1*r));%z = P\r;
+	beta = z'*r/(z_prev'*r_prev);
+	p = z + beta*p;
+	it=it+1;
+	end
 	if it>sqrt(n)*3
 		fprintf('Warning! >sqrt(n) %d iterations n=%d\n',it,n)
 	end
