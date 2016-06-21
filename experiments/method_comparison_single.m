@@ -1,7 +1,7 @@
 function method_comparison_single(varargin)
 %Wu Lin
 if nargin<1 
-	disp('Usage method_comparison_online(dataset_name, output_path, check_idx)');
+	disp('Usage method_comparison_single(dataset_name, output_path, check_idx)');
 	return
 else
 	dataset_name=char(varargin(1));
