@@ -1,4 +1,7 @@
-# prox-grad-svi-
-Proximal Gradient Stochastic Variational Inference Based on UAI-2016 paper by Khan, Babanezhad, Lin, Schmidt, and Sugiyama
+# prox-grad-svi
+Proximal Gradient Stochastic Variational Inference Based on the UAI-2016 paper by Khan, Babanezhad, Lin, Schmidt, and Sugiyama.
 
-We will add the code in July, 2016. Please e-mail emtiyaz@gmail if you need the code earlier than that. Thanks!
+The file 'demo.m' contains a few examples for Gaussian Process classification. To run this file, download the code, cd to the directory in Matlab, and do 'addpath(genpath(pwd))' at the command line.
+
+The file 'infKL_PG.m' is the main file which is written in the inference file format for GPML.
+
