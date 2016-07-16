@@ -1,48 +1,64 @@
 clear all
-% Compare Batch proximal-gradient (PG) method with EP
+% This code compares the batch proximal-gradient (PG) method with EP
 % For PG, we test 3 methods to approximate E[log p(y|f)]
 % 'gauss_hermite', 'piecewise', 'monte_carlo'.
-% List of datasets used is below.
+% For gauss_hermite we use likKL.m from GPML toolbox.
+% For monte_carlo default is to increase sample size linearly
+% but a fixed sample size can also be specificied (see infKL_PG.m)
 
-
-data_name = 'sonar'; % show results for this dataset
+% Choose a dataset and an approximation method for E(log p(y|f))
+data_name = 'usps_3vs5';%, 'usps_3vs5', 'sonar', 'housing'
+hyp.approx_method = 'monte_carlo'; % 'gauss_hermite', 'piecewise', 'monte_carlo'
 
 switch data_name
-case 'sonar'
-  % tested with gauss_hermite, piecewise, monte_carlo
-  lik_func = {@likLogistic}; hyp.lik = [];
-  ell = -1; sf = 6; seed = 1;
-  %hyp.approx_method = 'monte_carlo'; hyp.nSamples = 100;
-  %  hyp.step_size = .1; hyp.test_convergence = 0;
-  %hyp.approx_method = 'gauss_hermite'; hyp.step_size = .5;
-  hyp.approx_method = 'piecewise'; hyp.step_size = .8;
-  hyp.max_iters = 1000; hyp.verbose = 1;
-
 case 'ionosphere'
+  switch hyp.approx_method
+  case 'gauss_hermite'; hyp.step_size = 1;
+  case 'piecewise'; hyp.step_size = 1; 
+  case 'monte_carlo'; hyp.step_size = 1; 
+    hyp.test_convergence = 0; hyp.compute_marglik = 0;
+  end
+  % numer of iterations
+  hyp.max_iters = 30; hyp.verbose = 1;
+  % likelihood function
   lik_func = {@likLogistic}; hyp.lik = [];
   ell = 1; sf = 2.5; seed = 147;
-  %hyp.approx_method = 'gauss_hermite';
-  %hyp.step_size = 1;
-  %hyp.approx_method = 'piecewise';
-  hyp.step_size = 1; 
-  hyp.approx_method = 'monte_carlo'; hyp.nSamples = 100;
-  %  hyp.step_size = .1; hyp.test_convergence = 0;
-
-  hyp.max_iters = 1000;
-  hyp.verbose = 1;
 
 case 'usps_3vs5' 
+  switch hyp.approx_method
+  case 'gauss_hermite'; hyp.step_size = .5;
+  case 'piecewise'; hyp.step_size = 1; 
+  case 'monte_carlo'; hyp.step_size = .5; 
+    hyp.test_convergence = 0; hyp.compute_marglik = 0;
+  end
+  % numer of iterations
+  hyp.max_iters = 100; hyp.verbose = 1;
+  % likelihood function
   lik_func = {@likLogistic}; hyp.lik = [];
   ell = 2.5; sf = 5; seed = 147;
-  step_size_likKL = 0.1;
-  step_size_Elogp = 1;
+   
+case 'sonar'
+  switch hyp.approx_method
+  case 'gauss_hermite'; hyp.step_size = .8;
+  case 'piecewise'; hyp.step_size = .8; 
+  case 'monte_carlo'; hyp.step_size = .1; 
+    hyp.test_convergence = 0; hyp.compute_marglik = 0;
+  end
+  % numer of iterations
+  hyp.max_iters = 300; hyp.verbose = 1;
+  % likelihood function
+  lik_func = {@likLogistic}; hyp.lik = [];
+  ell = -1; sf = 6; seed = 1;
+ 
 case 'housing';
+  % approximation method for E(log p(y|f))
+  hyp.approx_method = 'gauss_hermite'; hyp.step_size = 1;
+  % numer of iterations
+  hyp.max_iters = 50; hyp.verbose = 1;
+  % likelihood function
   lik_func = {@likLaplace}; hyp.lik = -2;
   ell = 2.5; sf = 5; sn = -2; seed = 1;
-  hyp.step_size = 1;
-  hyp.approx_method = 'gauss_hermite';
-  hyp.verbose = 1;
-  hyp.max_iters = 20;
+  
 otherwise
   error('no such data name');
 end
@@ -57,7 +73,7 @@ mean_func = {@meanZero};
 hyp.mean = [];
 
 % run algos 
-algos = {'infKL_PG','infEP'};
+algos = {'infKL_PG','infEP'}; % compare against EP
 setSeed(1);
 for i = 1:length(algos)
   tic;
@@ -68,7 +84,6 @@ for i = 1:length(algos)
   log_loss(i) = -mean(log_p_hat);
   fprintf('%s, log_loss = %0.4f, nlZ_EP = %0.4f, took %1.1fs\n', algos{i}, log_loss(i), nlZ(i), tt(i));
 end
-
 
 %{
 % for Wu's code

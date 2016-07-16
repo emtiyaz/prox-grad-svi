@@ -1,13 +1,12 @@
 function [post nlZ dnlZ] = infKL_PG(hyp, mean, cov, lik, x, y)
 % KL-Proximal Variational Gaussian Inference 
-% Copyright (c) by Emtiyaz Khan, Wu Lin, and Hannes Nickisch 2016-07-11.
+% Copyright (c) by Emtiyaz Khan, Wu Lin, and Hannes Nickisch 2016-07-16.
 %
 % TODO subselecting min-batches (current implementation is for batch mode only)
-% TODO Convergence diagnostics for monte-carlo approximation
 % TODO Line search for deterministic version
 
 % default algorithmic settings
-[beta, approx_method, tol, kmax, nSamples, verbose, test_convergence] = myProcessOptions(hyp, 'step_size', 0.1, 'approx_method', 'gauss_hermite', 'tol', 1e-4, 'max_iters', 100, 'nSamples', 10, 'verbose', 0, 'test_convergence', 1);
+[beta, approx_method, tol, kmax, nSamples, verbose, test_convergence, compute_marglik] = myProcessOptions(hyp, 'step_size', 0.1, 'approx_method', 'gauss_hermite', 'tol', 1e-4, 'max_iters', 100, 'nSamples', -1, 'verbose', 0, 'test_convergence', 1, 'compute_marglik', 1);
 
 % likelihood and the GP prior
 lik_name = func2str(lik{:});
@@ -37,11 +36,15 @@ otherwise
   error('no such approximation method for E(log lik)');
 end
 
+% increase sample size for monte_carlo
+S = nSamples;
+if nSamples<0; S = 1; end;
+
 % iterate
-if verbose; fprintf('0) Kl-Bound, EP-Approx to nlZ\n'); end;
+if verbose & compute_marglik; fprintf('0) Kl-Bound, EP-Approx to nlZ\n'); end;
 for k = 1:kmax
   % Approximation to E(log p(y|f) )
-  [ll, df, dv] = feval(Elogp_fun, post_v, lik, hyp.lik, y, post_m, nSamples);
+  [ll, df, dv] = feval(Elogp_fun, post_v, lik, hyp.lik, y, post_m, S);
   alpha = df; W = -2*dv;
  
   % Gaussian pseudo-observation
@@ -57,7 +60,7 @@ for k = 1:kmax
   post_v = diag(K) - sum(T.*T,1)'; % post_v=diag(K-K*inv(K+inv(tW))*K);
   post_m = post_m + (1-r)*(pseudo_y - K*(sW.*( L\ (L'\(sW.*pseudo_y)))));
 
-  if test_convergence % doesn't work for monte-carlo approximation
+  if compute_marglik
     % recompute alpha to reduce the noise E(lik) term 
     alpha = (K+1e-10*eye(n))\(post_m-m);
 
@@ -65,38 +68,36 @@ for k = 1:kmax
     % where A = V*inv(K). We use the following identities:
     % log|A| = -2*log|L|, tr(A) = N - trace(sW*K*sW*inv(L'*L))
     % we recompute alpha to reduce the noise E(lik) term 
+    % This estimste uses monte-carlo estimate to ll, and may be noisy.
     nlZ_kl = -sum(ll) - 0.5*(-2*sum(log(diag(L))) + sum(sW.*diag(L\T)) - alpha'*(post_m-m));
  
     % EP approximation to the marginal likelihood, obtained by finding a
     % Gaussian projection N(mu,tW) by using 2nd equation in Appedix B.2
     % in Nickisch and Rasmussen (2008). tnu and ttau are natural params.
+    % This estimate uses gauss-hermite to approximate EP integrals and 
+    % may not be that accurate.
     tnu = alpha + tW.*post_m; ttau = tW;
     [~,~,~,~,nlZ_ep] = epComputeParams(K,y,ttau,tnu,lik,hyp,m,'infEP');
     
-    % asses convergence
     if verbose; fprintf('%d) %.4f %.4f\n', k, nlZ_kl, nlZ_ep); end;
+  end
+  
+  % asses convergence
+  if test_convergence & compute_marglik 
+    % doesn't work for monte-carlo approximation
     if k == 1; nlZ_old = nlZ_kl; end;
     if abs(nlZ_kl - nlZ_old) < tol && k >1; break; end;
     nlZ_old = nlZ_kl;
-
-  else % store the posterior for which minimum value of nlZ_ep is obtained
-    if k == 1; nlZ_ep_min = nlZ_ep; end;
-    if nlZ_ep < nlZ_ep_min
-      alpha_min = alpha; L_min = L; sW_min = sW; nlZ_ep_min = nlZ_ep;
-      post_m_min = post_m; post_v_min = post_v;
-    end
   end
+  
+  % increasing sample size for monte_carlo 
+  if nSamples<0; S = S+1; end;
 end
 
 if k==kmax, fprintf('Max number of iterations reached.\n'), end;
 
-if ~test_convergence
-  % output the post for which min value of nlZ_ep is obtained
-  alpha = alpha_min; L = L_min; sW = sW_min; nlZ_ep = nlZ_ep_min;
-  post_m = post_m_min; post_v = post_v_min;
-end
-
 % posterior distribution
+alpha = (K+1e-10*eye(n))\(post_m-m);
 post.sW = sW;                                             % return argument
 post.alpha = alpha;
 post.L = L;                                              % L'*L=B=eye(n)+sW*K*sW
@@ -181,7 +182,7 @@ function [ll,df,dv,d2f,d2v,dfdv] = likKL(v, lik, varargin)
     d2v = (z.*z-1)./(v+eps).*d2f/4;
     dfdv = -z.*d2f./(2*sv+eps);
   else
-    N = 20;                                        % number of quadrature points
+    N = 50;                                        % number of quadrature points
     [t,w] = gauher(N);    % location and weights for Gaussian-Hermite quadrature
     ll = 0; df = 0; d2f = 0; dv = 0; d2v = 0; dfdv = 0;  % init return arguments
     for i=1:N                                          % use Gaussian quadrature
