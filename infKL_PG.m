@@ -82,7 +82,7 @@ for k = 1:kmax
     if verbose; fprintf('%d) %.4f %.4f\n', k, nlZ_kl, nlZ_ep); end;
   end
   
-  % asses convergence
+  % assess convergence
   if test_convergence & compute_marglik 
     % doesn't work for monte-carlo approximation
     if k == 1; nlZ_old = nlZ_kl; end;
@@ -132,12 +132,6 @@ if nargout>1                                             %do we want nlZ?
   end
 end
 
-function y = logdet(A)
-% log(det(A)) for det(A)>0 using the LU decomposition of A
-  [L,U] = lu(A); u = diag(U); 
-  if prod(sign(u))~=det(L), error('det(A)<=0'), end
-  y = sum(log(abs(u)));
-  
 function [f, gm, gv] = E_log_p_mc(v, lik, hyp, y, m, S)
 % This function approximates E( log p(y|x) ) where 
 % expectation is wrt p(x) = N(x|m,v) with mean m and variance v.
