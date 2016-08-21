@@ -1,6 +1,6 @@
 function [post nlZ dnlZ] = infKL_PG_EXP(hyp, mean, cov, lik, x, y)
-% KL-Proximal Variational Gaussian Inference 
-% Copyright (c) by Emtiyaz Khan, Wu Lin, and Hannes Nickisch 2016-07-16.
+% KL-Proximal Variational Gaussian Inference using Natural Parameterization
+% Copyright (c) by Emtiyaz Khan, Wu Lin, and Hannes Nickisch 2016-08-21.
 %
 % TODO subselecting min-batches (current implementation is for batch mode only)
 % TODO Line search for deterministic version
