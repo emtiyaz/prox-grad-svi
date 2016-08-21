@@ -82,7 +82,7 @@ end
 %hyp.stochastic_approx=1 enable stochastic approxmation for the expectation
 %hyp.snu2 is used to correct the kernel matrix (eg, K_corrected=K+hyp.snu2*eye(n))
 
-algos = {'infKL_sKL','infKL_sKL','infKL_sKL','infKL_sKL','infKL_sprox','infKL_sKL'};
+algos = {'infKL_sKL','infKL_sKL','infKL_sKL','infKL_sKL','infKL_sprox_exp','infKL_sKL'};
 hyp.init_m = feval(meanfunc, hyp.mean, X_train); 
 n=size(X_train,1);
 hyp.init_V = feval(covfuncF, hyp.cov, X_train);

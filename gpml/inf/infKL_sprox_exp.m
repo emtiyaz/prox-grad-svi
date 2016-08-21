@@ -77,8 +77,8 @@ while pass<max_pass
 		L = chol(eye(n)+sW*sW'.*K); %L = chol(sW*K*sW + eye(n)); 
 		T = L'\(repmat(sW,1,n).*K); %T  = L'\(sW*K);
 		post_v = diag(K) - sum(T.*T,1)'; % v = diag(inv(inv(K)+diag(W))); %v^{k+1}
-		pseudo_y = K*tm1;
-		post_m = m + pseudo_y - K*(sW.*(L\(L'\(sW.*pseudo_y))));
+		pseudo_y = K*tm1+m;
+		post_m = pseudo_y - K*(sW.*(L\(L'\(sW.*pseudo_y))));
 		
 
 		% pseudo observation
@@ -100,7 +100,29 @@ while pass<max_pass
 
 	end
 	alpha=K\(post_m-m);
+	alpha2=(diag(abs(tm2))*K+eye(n))\(tm1-abs(tm2).*m);
+	fprintf('ddd %.4f %.4f\n',alpha(4),alpha2(4));
+
 	nlZ=compute_nlz(lik, hyp, sW, K, m, alpha, post_m, y);
+
+	assert( all(tm2)>0 );
+	pseudo_y3=tm1./tm2; 
+	lp=sum((pseudo_y3.*pseudo_y3.*tm2) - log(tm2))/2;
+	T2 = L'\(sW.*pseudo_y3);
+	D=L'\(diag(sW));
+	nlZ_exp=lp-0.5*T2'*T2+sum(log(diag(D)));
+
+
+	%tnu = alpha + tm2.*post_m; ttau = tm2; 
+	%tnu = tm1; ttau = tm2; 
+	tnu = alpha + tm2.*(K*alpha); ttau = tm2; 
+	%tnu = alpha + tm2.*post_m; ttau = tm2; 
+	[~,~,~,~,nlZ_ep] = epComputeParams(K,y,ttau,tnu,lik,hyp,m,'infEP');
+
+	if nlZ_ep < 82
+	fprintf('\npass:%d) exp:%.4f %.4f\n', pass, nlZ_exp, nlZ_ep);
+	end
+
 
 	if isfield(hyp,'save_iter') && hyp.save_iter==1
 		if pass==1
@@ -137,3 +159,34 @@ if nargout>2
   warning('to be implemented\n');
   dnlZ = NaN;
 end
+
+
+
+% log(det(A)) for det(A)>0 using the LU decomposition of A
+function y = logdet(A)
+[L,U] = lu(A); u = diag(U); 
+if prod(sign(u))~=det(L), error('det(A)<=0'), end 
+y = sum(log(abs(u)));
+
+
+
+
+
+function [Sigma,mu,L,alpha,nlZ] = epComputeParams(K,y,ttau,tnu,lik,hyp,m,inf)
+% function to compute the parameters of the Gaussian approximation, Sigma and
+% mu, and the negative log marginal likelihood, nlZ, from the current site
+% parameters, ttau and tnu. Also returns L (useful for predictions).
+  n = length(y);                                      % number of training cases
+  sW = sqrt(ttau);                                        % compute Sigma and mu
+  L = chol(eye(n)+sW*sW'.*K);                            % L'*L=B=eye(n)+sW*K*sW
+  V = L'\(repmat(sW,1,n).*K);
+  Sigma = K - V'*V;
+  alpha = tnu-sW.*solve_chol(L,sW.*(K*tnu+m));
+  mu = K*alpha+m; v = diag(Sigma);
+
+  tau_n = 1./diag(Sigma)-ttau;             % compute the log marginal likelihood
+  nu_n  = mu./diag(Sigma)-tnu;                    % vectors of cavity parameters
+  lZ = feval(lik{:}, hyp.lik, y, nu_n./tau_n, 1./tau_n, inf);
+  p = tnu-m.*ttau; q = nu_n-m.*tau_n;                        % auxiliary vectors
+  nlZ = sum(log(diag(L))) - sum(lZ) - p'*Sigma*p/2 + (v'*p.^2)/2 ...
+      - q'*((ttau./tau_n.*q-2*p).*v)/2 - sum(log(1+ttau./tau_n))/2;

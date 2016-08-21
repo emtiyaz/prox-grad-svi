@@ -47,7 +47,7 @@ covfuncF = @covSEiso;
 meanfunc = @meanConst;
 n_test=size(X_test,1);
 n_train=size(X_train,1);
-hyp.mean = 0;
+hyp.mean = 1;
 seed=5;
 
 switch dataset_name
@@ -62,7 +62,7 @@ end
 %hyp.stochastic_approx=1 enable stochastic approxmation for the expectation
 %hyp.snu2 is used to correct the kernel matrix (eg, K_corrected=K+hyp.snu2*eye(n))
 
-algos =	{'infKL_sprox','infKL_sprox','infKL_sprox','infKL_sprox','infKL_sprox','infKL_sprox','infKL_sprox','infKL_sprox','infKL_sprox','infKL_sprox','infKL_sprox','infKL_sprox','infKL_sprox','infKL_sprox','infKL_sprox','infKL_sprox','infKL_sprox', 'infKL_sprox'};
+algos ={'infKL_sprox','infKL_sprox','infKL_sprox','infKL_sprox','infKL_sprox','infKL_sprox','infKL_sprox','infKL_sprox','infKL_sprox_exp', 'infKL_sprox','infKL_sprox','infKL_sprox','infKL_sprox','infKL_sprox','infKL_sprox','infKL_sprox','infKL_sprox', 'infKL_sprox'};
 
 
 hyp.init_m = feval(meanfunc, hyp.mean, X_train); 
@@ -251,6 +251,7 @@ for i=1:length(algos)
 		error('unsupported method\n')
 	end
 	inffunc=algos{i};
+	inffunc
 
 	hyp.init_m = feval(meanfunc, hyp.mean, X_train); 
 	n=size(X_train,1);
