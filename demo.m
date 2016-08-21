@@ -7,7 +7,7 @@ clear all
 % but a fixed sample size can also be specificied (see infKL_PG.m)
 
 % Choose a dataset and an approximation method for E(log p(y|f))
-data_name = 'usps_3vs5';%, 'usps_3vs5', 'sonar', 'housing'
+data_name = 'usps_3vs5';%, 'ionosphere', 'usps_3vs5', 'sonar', 'housing'
 hyp.approx_method = 'monte_carlo'; % 'gauss_hermite', 'piecewise', 'monte_carlo'
 
 switch data_name
@@ -73,9 +73,9 @@ mean_func = {@meanZero};
 hyp.mean = [];
 
 % run algos 
-algos = {'infKL_PG','infEP'}; % compare against EP
-setSeed(1);
+algos = {'infKL_PG','infKL_PG_EXP','infEP'}; % compare against EP
 for i = 1:length(algos)
+  setSeed(1);
   tic;
   [~,~,m_hat,v_hat,log_p_hat,~,nlZ(i)] = gp(hyp, algos{i}, mean_func, cov_func, lik_func, X, y, X_te, y_te);
   tt(i) = toc;
@@ -100,5 +100,3 @@ hyp.learning_rate = 0.1;
 hyp.stochastic_approx = 1;
 hyp.sample_size = 500;
 %}
-
-
